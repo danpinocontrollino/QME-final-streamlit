@@ -10,7 +10,7 @@ st.set_page_config(page_title="Sapientia CBA - R&D", layout="wide")
 # =========================================================
 # 1. SETUP & DATA LOADING
 # =========================================================
-GOOGLE_API_KEY = "AIzaSyBzk0mas8cvSIp2YT9UWNrtw6UzbmMMTQI" 
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
 @st.cache_data
