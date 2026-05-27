@@ -21,7 +21,8 @@ def load_data():
     df = df.dropna(subset=['GDP_per_Capita', 'Research Quality', 'R&D Expenditure (%)'])
     
     # CBA Calculation
-    df['R&D Efficiency'] = df['Research Quality'] / df['R&D Expenditure (%)']
+    # Laplace Smoothing (+1.0) is used to prevent zero-division explosions from low-investment nations.
+    df['R&D Efficiency'] = df['Research Quality'] / (df['R&D Expenditure (%)'] + 1.0)
     df['R&D Efficiency'] = (df['R&D Efficiency'] / df['R&D Efficiency'].max()) * 100
     df['R&D Efficiency'] = df['R&D Efficiency'].round(2)
     return df
