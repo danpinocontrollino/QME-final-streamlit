@@ -1,6 +1,15 @@
-pandas
 altair
-streamlit
 google-generativeai
+ipython
 ipywidgets
+networkx
 numpy
+pandas
+pycountry
+python-Levenshtein
+python-louvain
+requests
+rpy2
+scikit-learn
+streamlit
+thefuzz

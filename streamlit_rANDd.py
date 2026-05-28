@@ -15,16 +15,21 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv('final_merged_dataset_with_RD.csv')
-    df['Student Population'] = df['Student Population'].astype(str).str.replace(',', '', regex=False)
+    df = pd.read_csv('final_sapientia_master.csv')
+    if df['Student Population'].dtype == object:
+        df['Student Population'] = df['Student Population'].str.replace(',', '', regex=False)
     df['Student Population'] = pd.to_numeric(df['Student Population'], errors='coerce')
-    df = df.dropna(subset=['GDP_per_Capita', 'Research Quality', 'R&D Expenditure (%)'])
     
-    # CBA Calculation
-    # Laplace Smoothing (+1.0) is used to prevent zero-division explosions from low-investment nations.
-    df['R&D Efficiency'] = df['Research Quality'] / (df['R&D Expenditure (%)'] + 1.0)
-    df['R&D Efficiency'] = (df['R&D Efficiency'] / df['R&D Efficiency'].max()) * 100
-    df['R&D Efficiency'] = df['R&D Efficiency'].round(2)
+    # Drop rows missing critical Z-variables or efficiency scores
+    df = df.dropna(subset=['GDP_per_Capita', 'Research Quality', 'R&D Expenditure (%)', 'Sapientia_Efficiency_Score'])
+    
+    # --- THE "SAFE SWAP" TRICK ---
+    # Rename the robust Order-m score to match the legacy 'R&D Efficiency' variable.
+    df.rename(columns={'Sapientia_Efficiency_Score': 'R&D Efficiency'}, inplace=True)
+    
+    # Format the Louvain Cluster so it looks clean in the dashboard
+    df['Louvain_Cluster'] = 'Cluster ' + df['Louvain_Cluster'].astype(int).astype(str)
+    
     return df
 
 df_master = load_data()
@@ -49,10 +54,10 @@ def draw_dashboard(dataframe, view_type='country', metric='R&D Efficiency'):
         y=alt.Y('Research Quality:Q', title='Output (Y): Research Quality', scale=alt.Scale(zero=False)),
         size=alt.Size('R&D Expenditure (%):Q', title='Gov. Input: R&D (%)', scale=alt.Scale(range=[20, 400])),
         color=alt.condition(brush, alt.Color('R&D Efficiency:Q', scale=eff_scale, title="Efficiency Score"), alt.value('#e8e8e8')),
-        tooltip=['Name:N', 'Country:N', 'R&D Expenditure (%):Q', 'Research Quality:Q', 'R&D Efficiency:Q']
+        tooltip=['Name:N', 'Country:N', 'Louvain_Cluster:N', 'R&D Expenditure (%):Q', 'Research Quality:Q', 'R&D Efficiency:Q']
     ).add_params(brush).properties(
         width=700, height=350, 
-        title=f"1. Cost-Benefit Matrix (Total: {len(dataframe)})"
+        title=f"1. Cost-Benefit Matrix: Color = Efficiency | Size = Gov. Investment (Total: {len(dataframe)})"
     )
 
     if view_type == 'country':
@@ -95,7 +100,7 @@ def draw_dashboard(dataframe, view_type='country', metric='R&D Efficiency'):
         tooltip=['Name:N', 'Country:N', 'R&D Efficiency:Q']
     ).add_params(hover).properties(
         width=700, height=300, 
-        title="3. The CBA Pipeline"
+        title="3. The CBA Pipeline: From Input (R&D) to Output (Efficiency)"
     )
 
     return scatter & bars & parallel
@@ -129,6 +134,7 @@ with tab1:
                 col_list = df_master.columns.tolist()
                 ai_prompt = f"""
                 You are an expert Data Scientist. Columns: {col_list}. 
+                (Note: 'Louvain_Cluster' contains values like 'Cluster 1', 'Cluster 2', representing the 6 macroeconomic peer groups).
                 User request: "{user_req}"
                 Respond ONLY with a valid JSON object. No markdown.
                 {{
